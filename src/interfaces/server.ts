@@ -1,3 +1,4 @@
+// ./src/interfaces/server.ts
 import { RMQOptions, HandlerFunction, RetryOptions } from './common';
 
 export interface RMQServerOptions extends RMQOptions {

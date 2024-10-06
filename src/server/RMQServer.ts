@@ -1,25 +1,12 @@
+// ./src/server/RMQServer.ts
 import * as amqp from 'amqplib';
 import { ConsumeMessage } from 'amqplib';
-import { RMQConnectionManager } from './RMQConnectionManager';
-import { HandlerRegistry, HandlerFunction, HandlerOptions } from './HandlerRegistry';
+import { RMQConnectionManager } from '../core/RMQConnectionManager';
+import { HandlerRegistry } from '../core/HandlerRegistry';
+import { RMQServerOptions, HandlerOptions, ListenOptions, RMQServer as IRMQServer } from '../interfaces/server';
+import { HandlerFunction, RetryOptions } from '../interfaces/common';
 
-interface RMQServerOptions {
-    uri: string;
-    appName: string;
-    retryOptions?: RetryOptions;
-}
-
-interface RetryOptions {
-    maxRetries?: number;
-    retryTTL?: number; // В миллисекундах
-    enabled?: boolean;
-}
-
-interface ListenOptions {
-    prefetch?: number;
-}
-
-export class RMQServer {
+export class RMQServer implements IRMQServer {
     private appName: string;
     private connectionManager: RMQConnectionManager;
     private handlerRegistry: HandlerRegistry;
@@ -50,34 +37,28 @@ export class RMQServer {
     private async initialize() {
         this.channel = await this.connectionManager.createChannel();
     
-        // Declare the single exchange (shared by both main and retry queues)
         await this.channel!.assertExchange(this.exchangeName, 'direct', { durable: true });
     
-        // DLQ (Dead Letter Queue) for failed messages that exceeded retry count
         await this.channel!.assertQueue(this.dlqName, { durable: true });
     
-        // Retry Queue with TTL, re-routing back to the main exchange
         await this.channel!.assertQueue(this.retryQueueName, {
             durable: true,
             arguments: {
-                'x-dead-letter-exchange': this.exchangeName, // Route back to the main exchange
+                'x-dead-letter-exchange': this.exchangeName,
             },
             messageTtl: this.defaultRetryOptions.retryTTL,
         });
     
-        // Bind Retry Queue to the same exchange (single exchange)
         await this.channel!.bindQueue(this.retryQueueName, this.exchangeName, '#');
     
-        // Main Queue with dead letter configuration to forward failed messages to the retry queue
         await this.channel!.assertQueue(this.mainQueueName, {
             durable: true,
             arguments: {
-                'x-dead-letter-exchange': this.exchangeName, // Route to retry queue on failure
-                'x-dead-letter-routing-key': '#',           // Same routing key for retry
+                'x-dead-letter-exchange': this.exchangeName,
+                'x-dead-letter-routing-key': '#',
             },
         });
     
-        // Bind Main Queue to the single exchange
         for (const routingKey of this.handlerRegistry.getRoutingKeys()) {
             await this.channel!.bindQueue(this.mainQueueName, this.exchangeName, routingKey);
         }
@@ -109,7 +90,7 @@ export class RMQServer {
             if (registeredHandler) {
                 const { handler, options } = registeredHandler;
                 const content = JSON.parse(msg.content.toString());
-                const context = { content, routingKey: originalRoutingKey };
+                const context = { content, routingKey: originalRoutingKey, headers };
     
                 const reply = (response: any) => {
                     if (msg.properties.replyTo && msg.properties.correlationId) {
@@ -131,39 +112,27 @@ export class RMQServer {
     
                 try {
                     await handler(context, reply);
-                    this.channel!.ack(msg); // Acknowledge successful processing
+                    this.channel!.ack(msg);
                 } catch (error) {
                     console.error(`Error processing routingKey '${originalRoutingKey}':`, error);
     
                     if (retryOptions.enabled && retryCount < retryOptions.maxRetries) {
-                        console.log({
-                            retryOptions,
-                            retryCount
-                        })
                         headers['x-retry-count'] = retryCount + 1;
                         headers['x-original-routing-key'] = originalRoutingKey;
-                        console.log(`Retrying message for the ${retryCount + 1} time...`);
-                        console.log({ headers });
-                        // Send message to the same exchange (back to retry queue)
-                        const published = this.channel!.publish(this.exchangeName, originalRoutingKey, msg.content, {
+                        this.channel!.publish(this.exchangeName, originalRoutingKey, msg.content, {
                             headers,
                             persistent: true,
                             expiration: retryOptions.retryTTL.toString(),
                         });
-                        console.log({ published });
-                        console.log(`Message sent to retry queue through the exchange: ${this.exchangeName} with routingKey: ${originalRoutingKey}`);
-                        const queueInfo = await this.channel!.checkQueue(this.retryQueueName);
-                        console.log(`Retry queue message count: ${queueInfo.messageCount}`);
-                        this.channel!.ack(msg); // Acknowledge the current message
+                        this.channel!.ack(msg);
                     } else {
-                        // Max retries reached, send to DLQ
                         await this.sendToDLQ(msg);
-                        this.channel!.ack(msg); // Acknowledge message
+                        this.channel!.ack(msg);
                     }
                 }
             } else {
                 console.warn(`No handler for routingKey: ${originalRoutingKey}`);
-                this.channel!.ack(msg); // Acknowledge to avoid looping
+                this.channel!.ack(msg);
             }
         }
     }
@@ -173,8 +142,6 @@ export class RMQServer {
             headers: msg.properties.headers,
             persistent: true,
         });
-    
-        console.log(`Message sent to DLQ: ${this.dlqName}`);
     }
 
     public async close() {

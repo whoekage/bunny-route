@@ -1,7 +1,8 @@
-// /src/RMQConnectionManager.ts
+// /src/core/RMQConnectionManager.ts
 import amqp, { Connection, Channel } from 'amqplib';
+import { ConnectionManager } from '../interfaces/common';
 
-export class RMQConnectionManager {
+export class RMQConnectionManager implements ConnectionManager {
   private static instance: RMQConnectionManager;
   private connection!: Connection;
   private channels: Channel[] = [];

@@ -1,5 +1,5 @@
 // examples/server.ts
-import { RMQServer } from '../src/RMQServer';
+import { RMQServer } from '../src/server/RMQServer';
 
 const app = new RMQServer({
   uri: 'amqp://user:drypkZ13j0L24zcf@localhost',

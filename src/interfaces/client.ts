@@ -1,3 +1,5 @@
+// src/interfaces/client.ts
+
 import { RMQOptions } from './common';
 
 export interface RMQClientOptions extends RMQOptions {}

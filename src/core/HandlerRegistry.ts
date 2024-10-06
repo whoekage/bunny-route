@@ -1,11 +1,5 @@
-// HandlerRegistry.ts
-export type HandlerFunction = (context: { content: any; routingKey: string }, reply: (response: any) => void) => Promise<void>;
-
-export interface HandlerOptions {
-  maxRetries?: number;
-  retryTTL?: number;
-  retryEnabled?: boolean;
-}
+import { HandlerFunction } from '../interfaces/common';
+import { HandlerOptions } from '../interfaces/server';
 
 export interface RegisteredHandler {
   handler: HandlerFunction;
