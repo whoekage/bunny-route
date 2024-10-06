@@ -20,6 +20,11 @@ export class RMQClient implements IRMQClient {
     this.responseEmitter = new EventEmitter();
     this.responseEmitter.setMaxListeners(0);
   }
+  public static async connect(options: RMQClientOptions): Promise<RMQClient> {
+    const client = new RMQClient(options);
+    await client.connect();
+    return client;
+  }
 
   public async connect(): Promise<void> {
     this.channel = await this.connectionManager.createChannel();
