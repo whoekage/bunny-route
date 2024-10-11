@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Исходные файлы TypeScript
+src/
+
+# Файлы тестов
+test/
+*.spec.ts
+*.test.ts
+
+# Конфигурационные файлы
+tsconfig.json
+.eslintrc.json
+.prettierrc
+jest.config.js
+
+# Файлы IDE и редакторов
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Логи
+*.log
+npm-debug.log*
+
+# Зависимости
+node_modules/
+
+# Файлы сборки и кэша
+.npm
+.eslintcache
+
+# Файлы системы
+.DS_Store
+Thumbs.db
+
+# Документация и примеры (если они не нужны в npm пакете)
+docs/
+examples/
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+.github/
+
+# Другие файлы разработки
+CONTRIBUTING.md
+CHANGELOG.md
