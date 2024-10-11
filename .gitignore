@@ -1,2 +1,21 @@
-node_modules
-package-lock.json
+# Зависимости
+node_modules/
+
+# Логи
+logs
+*.log
+npm-debug.log*
+
+# Директория сборки
+dist/
+
+# Файлы среды выполнения
+.env
+
+# Файлы IDE
+.vscode/
+.idea/
+
+# Системные файлы
+.DS_Store
+Thumbs.db
