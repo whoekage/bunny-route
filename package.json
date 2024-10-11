@@ -41,12 +41,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/whoekagesama/bunny-route.git"
+    "url": "git+https://github.com/whoekage/bunny-route.git"
   },
   "bugs": {
-    "url": "https://github.com/whoekagesama/bunny-route/issues"
+    "url": "https://github.com/whoekage/bunny-route/issues"
   },
-  "homepage": "https://github.com/whoekagesama/bunny-route#readme",
+  "homepage": "https://github.com/whoekage/bunny-route#readme",
   "devDependencies": {
     "@types/amqplib": "^0.10.5",
     "@types/uuid": "^10.0.0",

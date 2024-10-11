@@ -122,7 +122,7 @@ Bunny Route supports RPC-style communication:
 
 ## Documentation
 
-For more detailed documentation, please refer to the [Wiki](https://github.com/whoekagesama/bunny-route/wiki).
+For more detailed documentation, please refer to the [Wiki](https://github.com/whoekage/bunny-route/wiki).
 
 ## Contributing
 
