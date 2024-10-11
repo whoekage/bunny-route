@@ -11,6 +11,7 @@ Bunny Route is a high-performance, Express-inspired RabbitMQ client for Node.js,
 - Support for direct messaging patterns
 - RPC (Remote Procedure Call) support for request-response scenarios
 - Dead-letter queue support for unprocessable messages
+- Support for both CommonJS and ES modules
 
 ## Installation
 
@@ -22,8 +23,10 @@ npm install bunny-route
 
 ### Server (Consumer) Example
 
-```typescript
-import { RMQServer } from 'bunny-route';
+#### CommonJS
+
+```javascript
+const { RMQServer } = require('bunny-route');
 
 const server = new RMQServer({
   uri: 'amqp://localhost',
@@ -47,13 +50,6 @@ server.on('user.created', async (data, ctx) => {
   retryTTL: 10000  // Override default retryTTL for this specific handler
 });
 
-// Define a route with default retry options
-server.on('order.placed', async (data, ctx) => {
-  console.log('New order placed:', data);
-  // Process the order
-  return { status: 'processed' }; // This will be sent back if it's an RPC call
-});
-
 // Start the server
 server.listen({ prefetch: 10 })  // Set prefetch to control concurrency
   .then(() => {
@@ -64,10 +60,30 @@ server.listen({ prefetch: 10 })  // Set prefetch to control concurrency
   });
 ```
 
+#### ES Modules
+
+```javascript
+import { RMQServer } from 'bunny-route';
+
+const server = new RMQServer({
+  uri: 'amqp://localhost',
+  appName: 'my-service',
+  retryOptions: {
+    maxRetries: 3,
+    retryTTL: 5000,
+    enabled: true
+  }
+});
+
+// Rest of the code remains the same as in CommonJS example
+```
+
 ### Client (Publisher) Example
 
-```typescript
-import { RMQClient } from 'bunny-route';
+#### CommonJS
+
+```javascript
+const { RMQClient } = require('bunny-route');
 
 const client = new RMQClient({
   uri: 'amqp://localhost',
@@ -79,11 +95,6 @@ async function publishMessages() {
 
   // Publish a message
   await client.send('user.created', { id: 123, name: 'John Doe' });
-
-  // Publish a message with custom options
-  await client.send('order.placed', { orderId: 456, total: 99.99 }, {
-    persistent: true  // Ensure the message is persisted
-  });
 
   // RPC call (send and wait for response)
   try {
@@ -99,6 +110,19 @@ async function publishMessages() {
 }
 
 publishMessages().catch(console.error);
+```
+
+#### ES Modules
+
+```javascript
+import { RMQClient } from 'bunny-route';
+
+const client = new RMQClient({
+  uri: 'amqp://localhost',
+  appName: 'my-service'
+});
+
+// Rest of the code remains the same as in CommonJS example
 ```
 
 ## Key Concepts

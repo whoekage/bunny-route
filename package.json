@@ -1,9 +1,9 @@
 {
   "name": "bunny-route",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "Express-inspired, high-performance RabbitMQ client for Node.js",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "dependencies": {
     "amqplib": "^0.10.4",
     "uuid": "^10.0.0"
@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
+    "postpublish": "rm -f *.tgz",
     "start": "node --experimental-strip-types src/index.ts",
     "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node src/index.ts"
   },
@@ -51,6 +52,7 @@
     "@types/amqplib": "^0.10.5",
     "@types/uuid": "^10.0.0",
     "ts-node": "^10.9.2",
+    "tsc-esm": "^1.0.4",
     "typescript": "^5.6.2"
   }
 }

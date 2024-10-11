@@ -19,3 +19,6 @@ dist/
 # Системные файлы
 .DS_Store
 Thumbs.db
+
+# Архивы npm
+*.tgz

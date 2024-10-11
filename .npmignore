@@ -1,15 +1,7 @@
-# Git
-.git
-.gitignore
-.gitattributes
-
-# Исходные файлы TypeScript
+# Исходные файлы и директории
 src/
-
-# Файлы тестов
+examples/
 test/
-*.spec.ts
-*.test.ts
 
 # Конфигурационные файлы
 tsconfig.json
@@ -17,36 +9,36 @@ tsconfig.json
 .prettierrc
 jest.config.js
 
+# Git
+.git
+.gitignore
+.gitattributes
+
 # Файлы IDE и редакторов
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Логи
+# Логи и кэш
 *.log
 npm-debug.log*
-
-# Зависимости
-node_modules/
-
-# Файлы сборки и кэша
 .npm
 .eslintcache
 
-# Файлы системы
+# Системные файлы
 .DS_Store
 Thumbs.db
-
-# Документация и примеры (если они не нужны в npm пакете)
-docs/
-examples/
 
 # CI/CD
 .travis.yml
 .gitlab-ci.yml
 .github/
 
-# Другие файлы разработки
+# Файлы разработки
 CONTRIBUTING.md
 CHANGELOG.md
+
+# Исключаем dist/examples и dist/src
+dist/examples/
+dist/src/
