@@ -5,10 +5,12 @@ Bunny Route is a high-performance, Express-inspired RabbitMQ client for Node.js,
 ## Features
 
 - Express-like architecture for familiar and intuitive usage
-- Simplified RabbitMQ setup and configuration
-- Efficient message routing and handling
+- Simplified RabbitMQ setup with automatic queue and exchange creation
 - Automatic connection management and recovery
-- Support for basic AMQP 0-9-1 messaging patterns
+- Built-in retry mechanism for failed message processing
+- Support for direct messaging patterns
+- RPC (Remote Procedure Call) support for request-response scenarios
+- Dead-letter queue support for unprocessable messages
 
 ## Installation
 
@@ -16,35 +18,115 @@ Bunny Route is a high-performance, Express-inspired RabbitMQ client for Node.js,
 npm install bunny-route
 ```
 
-## Quick Start
+## Usage Examples
 
-```javascript
-import { BunnyApp } from 'bunny-route';
+### Server (Consumer) Example
 
-const app = new BunnyApp({
+```typescript
+import { RMQServer } from 'bunny-route';
+
+const server = new RMQServer({
   uri: 'amqp://localhost',
-  appName: 'my-app'
+  appName: 'my-service', // This will be used as the exchange and queue name prefix
+  retryOptions: {
+    maxRetries: 3,
+    retryTTL: 5000,
+    enabled: true
+  }
 });
 
-// Define a route
-app.on('user.created', async (data, ctx) => {
+// Define a route with custom handler options
+server.on('user.created', async (data, ctx) => {
   console.log('New user created:', data);
   // Process the message
+  if (someCondition) {
+    throw new Error('Processing failed');  // This will trigger a retry
+  }
+}, {
+  maxRetries: 5,  // Override default maxRetries for this specific handler
+  retryTTL: 10000  // Override default retryTTL for this specific handler
 });
 
-// Start the application
-app.listen().then(() => {
-  console.log('Bunny Route is now listening for messages');
+// Define a route with default retry options
+server.on('order.placed', async (data, ctx) => {
+  console.log('New order placed:', data);
+  // Process the order
+  return { status: 'processed' }; // This will be sent back if it's an RPC call
 });
+
+// Start the server
+server.listen({ prefetch: 10 })  // Set prefetch to control concurrency
+  .then(() => {
+    console.log('Bunny Route server is now listening for messages');
+  })
+  .catch((error) => {
+    console.error('Failed to start server:', error);
+  });
 ```
+
+### Client (Publisher) Example
+
+```typescript
+import { RMQClient } from 'bunny-route';
+
+const client = new RMQClient({
+  uri: 'amqp://localhost',
+  appName: 'my-service' // This should match the server's appName for proper routing
+});
+
+async function publishMessages() {
+  await client.connect();
+
+  // Publish a message
+  await client.send('user.created', { id: 123, name: 'John Doe' });
+
+  // Publish a message with custom options
+  await client.send('order.placed', { orderId: 456, total: 99.99 }, {
+    persistent: true  // Ensure the message is persisted
+  });
+
+  // RPC call (send and wait for response)
+  try {
+    const response = await client.send('order.placed', { orderId: 789, total: 199.99 }, {
+      timeout: 5000 // Wait for 5 seconds for a response
+    });
+    console.log('Order processing result:', response);
+  } catch (error) {
+    console.error('RPC call failed:', error);
+  }
+
+  await client.close();
+}
+
+publishMessages().catch(console.error);
+```
+
+## Key Concepts
+
+- **appName**: This is used as a prefix for both the exchange and queue names. It helps in organizing and identifying your service's messaging components.
+- **Exchange**: A direct exchange is created using the pattern `${appName}`.
+- **Queues**: The main queue is named `${appName}`, with additional queues for retries and dead-letters.
+- **Routing**: Messages are routed based on the routing keys you define in your `on` handlers.
+
+## RPC Mechanism
+
+Bunny Route supports RPC-style communication:
+- The server can return values from its handlers, which will be sent back to the client for RPC calls.
+- The client can make RPC calls using the `send` method with a timeout option, which will wait for a response.
+
+## Error Handling and Retries
+
+- Failed message processing triggers automatic retries based on the configured `retryOptions`.
+- Messages exceeding the maximum retry count are sent to a dead-letter queue (`${appName}.dlq`).
+- Connection errors are automatically handled with reconnection attempts.
 
 ## Documentation
 
-For more detailed documentation, please refer to the comments in the source code. Full documentation is coming soon.
+For more detailed documentation, please refer to the [Wiki](https://github.com/whoekagesama/bunny-route/wiki).
 
 ## Contributing
 
-We welcome contributions! Please open an issue or submit a pull request on our GitHub repository.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## License
 

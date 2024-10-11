@@ -1,12 +1,52 @@
 {
+  "name": "bunny-route",
+  "version": "0.1.0",
+  "description": "Express-inspired, high-performance RabbitMQ client for Node.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "dependencies": {
     "amqplib": "^0.10.4",
     "uuid": "^10.0.0"
   },
   "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
     "start": "node --experimental-strip-types src/index.ts",
     "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node src/index.ts"
   },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "rabbitmq",
+    "amqp",
+    "messaging",
+    "queue",
+    "microservices",
+    "nodejs",
+    "rpc",
+    "remote-procedure-call",
+    "sync-messaging",
+    "async-messaging",
+    "message-broker",
+    "amqplib",
+    "request-response",
+    "distributed-systems",
+    "retry-mechanism",
+    "dead-letter-queue",
+    "express-style",
+    "event-driven"
+  ],
+  "author": "Phail Sharkaev sharkaev.ph@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/whoekagesama/bunny-route.git"
+  },
+  "bugs": {
+    "url": "https://github.com/whoekagesama/bunny-route/issues"
+  },
+  "homepage": "https://github.com/whoekagesama/bunny-route#readme",
   "devDependencies": {
     "@types/amqplib": "^0.10.5",
     "@types/uuid": "^10.0.0",

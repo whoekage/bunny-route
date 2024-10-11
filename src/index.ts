@@ -1,5 +1,6 @@
-// ./src/index.ts
-export * from './interfaces';
-export { RMQClient } from './client';
-export { RMQServer } from './server';
-export * from './core';
+export { RMQServer } from './server/RMQServer';
+export { RMQClient } from './client/RMQClient';
+
+export * from './interfaces/common';
+export * from './interfaces/client';
+export * from './interfaces/server';
