@@ -25,7 +25,7 @@ export class RMQServer implements IRMQServer {
         this.defaultRetryOptions = {
             maxRetries: options.retryOptions?.maxRetries ?? 3,
             retryTTL: options.retryOptions?.retryTTL ?? 5000,
-            enabled: options.retryOptions?.enabled ?? true,
+            enabled: options.retryOptions?.enabled ?? false,
         };
         this.mainQueueName = `${this.appName}`;
         this.exchangeName = `${this.appName}`;
