@@ -1,1 +1,5 @@
-// ./src/errors/index.ts
+// src/errors/index.ts
+
+export * from './BaseError';
+export * from './ConnectionError';
+export * from './HandlerError';

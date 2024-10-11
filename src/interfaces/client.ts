@@ -5,7 +5,7 @@ import { RMQOptions } from './common';
 export interface RMQClientOptions extends RMQOptions {}
 
 export interface SendOptions {
-  timeout?: number;
+  timeout?: number | null;
   persistent?: boolean;
 }
 

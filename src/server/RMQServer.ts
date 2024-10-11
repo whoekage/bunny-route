@@ -138,6 +138,7 @@ export class RMQServer implements IRMQServer {
     }
 
     private async sendToDLQ(msg: ConsumeMessage) {
+        console.log(`Sending message to DLQ: ${msg.fields.routingKey}`);
         this.channel!.sendToQueue(this.dlqName, msg.content, {
             headers: msg.properties.headers,
             persistent: true,

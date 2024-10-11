@@ -5,7 +5,7 @@ import { EventEmitter } from 'events';
 import { RMQClientOptions, SendOptions, RMQClient as IRMQClient } from '../interfaces/client';
 import { ConnectionManager } from '../interfaces/common';
 import { RMQConnectionManager } from '../core/RMQConnectionManager';
-
+import { RMQTimeoutError, RMQPublishError, RMQConnectionError } from '../errors';
 
 export class RMQClient implements IRMQClient {
   private appName: string;
@@ -47,34 +47,53 @@ export class RMQClient implements IRMQClient {
 
   public async send<T>(routingKey: string, message: any, options: SendOptions = {}): Promise<T> {
     if (!this.channel) {
-      throw new Error('Client not connected. Call connect() first.');
+      throw new RMQConnectionError('Client not connected. Call connect() first.');
     }
 
     const correlationId = uuidv4();
 
     return new Promise<T>((resolve, reject) => {
-      const timeout = options.timeout || 30000; // Default 30 seconds timeout
-      const timer = setTimeout(() => {
+      let timer: NodeJS.Timeout | null = null;
+
+      if (options.timeout !== null && options.timeout !== undefined) {
+        timer = setTimeout(() => {
+          this.responseEmitter.removeAllListeners(correlationId);
+          reject(new RMQTimeoutError(`Request timed out after ${options.timeout}ms`));
+        }, options.timeout);
+      }
+
+      const cleanupAndResolve = (content: string) => {
+        if (timer) clearTimeout(timer);
         this.responseEmitter.removeAllListeners(correlationId);
-        reject(new Error('Request timed out'));
-      }, timeout);
-
-      this.responseEmitter.once(correlationId, (content: string) => {
-        clearTimeout(timer);
-        const response = JSON.parse(content);
-        resolve(response);
-      });
-
-      this.channel!.publish(
-        this.appName,
-        routingKey,
-        Buffer.from(JSON.stringify(message)),
-        {
-          replyTo: this.replyQueue!.queue,
-          correlationId,
-          persistent: options.persistent ?? true,
+        try {
+          const response = JSON.parse(content);
+          resolve(response);
+        } catch (error) {
+          reject(new Error('Failed to parse response'));
         }
-      );
+      };
+
+      this.responseEmitter.once(correlationId, cleanupAndResolve);
+
+      try {
+        const sent = this.channel!.publish(
+          this.appName,
+          routingKey,
+          Buffer.from(JSON.stringify(message)),
+          {
+            replyTo: this.replyQueue!.queue,
+            correlationId,
+            persistent: options.persistent ?? true,
+          }
+        );
+        if (!sent) {
+          throw new RMQPublishError('Channel\'s internal buffer is full');
+        }
+      } catch (error) {
+        if (timer) clearTimeout(timer);
+        this.responseEmitter.removeAllListeners(correlationId);
+        reject(error instanceof Error ? error : new Error('Unknown error during publish'));
+      }
     });
   }
 

@@ -1,5 +1,6 @@
 // examples/client.ts
 import { RMQClient } from '../src/client';
+import { RMQTimeoutError } from '../src/errors';
 
 (async () => {
         const client = await RMQClient.connect({
@@ -12,12 +13,16 @@ import { RMQClient } from '../src/client';
             const userResponse: any = await client.send('create.user', {
                 name: 'John Doe',
             }, {
-                timeout: 1000,
+                timeout: null,
             });
             console.log('Ответ от сервера на create.user:', userResponse);
             
         } catch (error) {
-            console.error('Ошибка при создании пользователя:', error);
+            if (error instanceof RMQTimeoutError) {
+                console.error('Время ожидания ответа истекло');
+            } else {
+                console.error('Ошибка при создании пользователя:', error);
+            }
         }
         
 
