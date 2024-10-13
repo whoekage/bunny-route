@@ -13,7 +13,8 @@
     "prepublishOnly": "npm run build",
     "postpublish": "rm -f *.tgz",
     "start": "node --experimental-strip-types src/index.ts",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node src/index.ts"
+    "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node src/index.ts",
+    "test": "jest"
   },
   "files": [
     "dist"
@@ -50,7 +51,10 @@
   "homepage": "https://github.com/whoekage/bunny-route#readme",
   "devDependencies": {
     "@types/amqplib": "^0.10.5",
+    "@types/jest": "^29.5.13",
     "@types/uuid": "^10.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "tsc-esm": "^1.0.4",
     "typescript": "^5.6.2"

@@ -3,6 +3,7 @@ import { RMQOptions, HandlerFunction, RetryOptions } from './common';
 
 export interface RMQServerOptions extends RMQOptions {
   retryOptions?: Partial<RetryOptions>;
+  exchange?: string;
 }
 
 export interface HandlerOptions {

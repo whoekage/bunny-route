@@ -8,17 +8,21 @@ import { HandlerFunction, RetryOptions } from '../interfaces/common';
 
 export class RMQServer implements IRMQServer {
     private appName: string;
+    private exchange: string;
     private connectionManager: RMQConnectionManager;
     private handlerRegistry: HandlerRegistry;
     private channel: amqp.Channel | null = null;
     private defaultRetryOptions: Required<RetryOptions>;
     private mainQueueName: string;
-    private exchangeName: string;
     private retryExchangeName: string;
     private retryQueueName: string;
     private dlqName: string;
 
     constructor(options: RMQServerOptions) {
+        if (!options.appName && !options.exchange) {
+            throw new Error('Either appName or exchange must be provided');
+        }
+        this.exchange = options.exchange || options.appName;
         this.appName = options.appName;
         this.connectionManager = RMQConnectionManager.getInstance(options.uri);
         this.handlerRegistry = new HandlerRegistry();
@@ -28,8 +32,7 @@ export class RMQServer implements IRMQServer {
             enabled: options.retryOptions?.enabled ?? false,
         };
         this.mainQueueName = `${this.appName}`;
-        this.exchangeName = `${this.appName}`;
-        this.retryExchangeName = `${this.exchangeName}.retry`;
+        this.retryExchangeName = `${this.exchange}.retry`;
         this.retryQueueName = `${this.mainQueueName}.retry`;
         this.dlqName = `${this.mainQueueName}.dlq`;
     }
@@ -37,30 +40,30 @@ export class RMQServer implements IRMQServer {
     private async initialize() {
         this.channel = await this.connectionManager.createChannel();
     
-        await this.channel!.assertExchange(this.exchangeName, 'direct', { durable: true });
+        await this.channel!.assertExchange(this.exchange, 'direct', { durable: true });
     
         await this.channel!.assertQueue(this.dlqName, { durable: true });
     
         await this.channel!.assertQueue(this.retryQueueName, {
             durable: true,
             arguments: {
-                'x-dead-letter-exchange': this.exchangeName,
+                'x-dead-letter-exchange': this.exchange,
             },
             messageTtl: this.defaultRetryOptions.retryTTL,
         });
     
-        await this.channel!.bindQueue(this.retryQueueName, this.exchangeName, '#');
+        await this.channel!.bindQueue(this.retryQueueName, this.exchange, '#');
     
         await this.channel!.assertQueue(this.mainQueueName, {
             durable: true,
             arguments: {
-                'x-dead-letter-exchange': this.exchangeName,
+                'x-dead-letter-exchange': this.exchange,
                 'x-dead-letter-routing-key': '#',
             },
         });
     
         for (const routingKey of this.handlerRegistry.getRoutingKeys()) {
-            await this.channel!.bindQueue(this.mainQueueName, this.exchangeName, routingKey);
+            await this.channel!.bindQueue(this.mainQueueName, this.exchange, routingKey);
         }
     }
 
@@ -119,7 +122,7 @@ export class RMQServer implements IRMQServer {
                     if (retryOptions.enabled && retryCount < retryOptions.maxRetries) {
                         headers['x-retry-count'] = retryCount + 1;
                         headers['x-original-routing-key'] = originalRoutingKey;
-                        this.channel!.publish(this.exchangeName, originalRoutingKey, msg.content, {
+                        this.channel!.publish(this.exchange, originalRoutingKey, msg.content, {
                             headers,
                             persistent: true,
                             expiration: retryOptions.retryTTL.toString(),
