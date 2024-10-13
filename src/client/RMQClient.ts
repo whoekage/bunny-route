@@ -8,6 +8,7 @@ import { RMQConnectionManager } from '../core/RMQConnectionManager';
 import { RMQTimeoutError, RMQPublishError, RMQConnectionError } from '../errors';
 
 export class RMQClient implements IRMQClient {
+  private exchange: string;
   private appName: string;
   private connectionManager: ConnectionManager;
   private channel: amqp.Channel | null = null;
@@ -19,6 +20,7 @@ export class RMQClient implements IRMQClient {
     this.connectionManager = RMQConnectionManager.getInstance(options.uri);
     this.responseEmitter = new EventEmitter();
     this.responseEmitter.setMaxListeners(0);
+    this.exchange = options.exchange || options.appName;
   }
   public static async connect(options: RMQClientOptions): Promise<RMQClient> {
     const client = new RMQClient(options);
@@ -28,7 +30,7 @@ export class RMQClient implements IRMQClient {
 
   public async connect(): Promise<void> {
     this.channel = await this.connectionManager.createChannel();
-    await this.channel.assertExchange(this.appName, 'direct', { durable: true });
+    await this.channel.assertExchange(this.exchange, 'direct', { durable: true });
     this.replyQueue = await this.channel.assertQueue('', { exclusive: true });
     
     this.channel.consume(
@@ -77,7 +79,7 @@ export class RMQClient implements IRMQClient {
 
       try {
         const sent = this.channel!.publish(
-          this.appName,
+          this.exchange,
           routingKey,
           Buffer.from(JSON.stringify(message)),
           {

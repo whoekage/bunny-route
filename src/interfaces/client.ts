@@ -2,7 +2,9 @@
 
 import { RMQOptions } from './common';
 
-export interface RMQClientOptions extends RMQOptions {}
+export interface RMQClientOptions extends RMQOptions {
+  exchange?: string;
+}
 
 export interface SendOptions {
   timeout?: number | null;
