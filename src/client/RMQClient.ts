@@ -53,7 +53,7 @@ export class RMQClient implements IRMQClient {
     }
 
     const correlationId = uuidv4();
-
+    message.id = correlationId;
     return new Promise<T>((resolve, reject) => {
       let timer: NodeJS.Timeout | null = null;
 
