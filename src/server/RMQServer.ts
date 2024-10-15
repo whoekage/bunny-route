@@ -22,7 +22,7 @@ export class RMQServer implements IRMQServer {
         if (!options.appName && !options.exchange) {
             throw new Error('Either appName or exchange must be provided');
         }
-        this.exchange = options.exchange || options.appName;
+        this.exchange = options.exchange ?? options.appName;
         this.appName = options.appName;
         this.connectionManager = RMQConnectionManager.getInstance(options.uri);
         this.handlerRegistry = new HandlerRegistry();

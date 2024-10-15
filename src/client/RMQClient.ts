@@ -20,7 +20,7 @@ export class RMQClient implements IRMQClient {
     this.connectionManager = RMQConnectionManager.getInstance(options.uri);
     this.responseEmitter = new EventEmitter();
     this.responseEmitter.setMaxListeners(0);
-    this.exchange = options.exchange || options.appName;
+    this.exchange = options.exchange ?? options.appName;
   }
   public static async connect(options: RMQClientOptions): Promise<RMQClient> {
     const client = new RMQClient(options);
@@ -53,7 +53,7 @@ export class RMQClient implements IRMQClient {
     }
 
     const correlationId = uuidv4();
-    message.id = correlationId;
+    message.id = correlationId; // for Nest.js compatibility
     return new Promise<T>((resolve, reject) => {
       let timer: NodeJS.Timeout | null = null;
 
