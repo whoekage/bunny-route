@@ -30,7 +30,9 @@ export class RMQClient implements IRMQClient {
 
   public async connect(): Promise<void> {
     this.channel = await this.connectionManager.createChannel();
-    await this.channel.assertExchange(this.exchange, 'direct', { durable: true });
+    if (this.exchange !== '') {
+      await this.channel.assertExchange(this.exchange, 'direct', { durable: true });
+    }
     this.replyQueue = await this.channel.assertQueue('', { exclusive: true });
     
     this.channel.consume(
