@@ -1,6 +1,6 @@
 {
   "name": "bunny-route",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Express-inspired, high-performance RabbitMQ client for Node.js",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
