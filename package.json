@@ -37,7 +37,12 @@
     "retry-mechanism",
     "dead-letter-queue",
     "express-style",
-    "event-driven"
+    "event-driven",
+    "nest",
+    "nestjs",
+    "nestjs-rabbitmq",
+    "rabbitmq-client",
+    "nestjs-rabbitmq-client"
   ],
   "author": "Phail Sharkaev sharkaev.ph@gmail.com>",
   "license": "MIT",
