@@ -6,7 +6,7 @@ import { RMQClientOptions, SendOptions, RMQClient as IRMQClient } from '../inter
 import { ConnectionManager } from '../interfaces/common';
 import { RMQConnectionManager } from '../core/RMQConnectionManager';
 import { RMQTimeoutError, RMQPublishError, RMQConnectionError } from '../errors';
-
+import { validateExchange, assertExchange } from '../utils/exchangeUtils';
 export class RMQClient implements IRMQClient {
   private exchange: string;
   private appName: string;
@@ -21,6 +21,7 @@ export class RMQClient implements IRMQClient {
     this.responseEmitter = new EventEmitter();
     this.responseEmitter.setMaxListeners(0);
     this.exchange = options.exchange ?? options.appName;
+    validateExchange(this.exchange);
   }
   public static async connect(options: RMQClientOptions): Promise<RMQClient> {
     const client = new RMQClient(options);
@@ -30,9 +31,7 @@ export class RMQClient implements IRMQClient {
 
   public async connect(): Promise<void> {
     this.channel = await this.connectionManager.createChannel();
-    if (this.exchange !== '') {
-      await this.channel.assertExchange(this.exchange, 'direct', { durable: true });
-    }
+    await assertExchange(this.channel, this.exchange);
     this.replyQueue = await this.channel.assertQueue('', { exclusive: true });
     
     this.channel.consume(
@@ -55,7 +54,9 @@ export class RMQClient implements IRMQClient {
     }
 
     const correlationId = uuidv4();
-    message.id = correlationId; // for Nest.js compatibility
+    if (options.nestCompatible) {
+      message.id = correlationId; // for Nest.js compatibility
+    }
     return new Promise<T>((resolve, reject) => {
       let timer: NodeJS.Timeout | null = null;
 

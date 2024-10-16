@@ -9,6 +9,7 @@ export interface RMQClientOptions extends RMQOptions {
 export interface SendOptions {
   timeout?: number | null;
   persistent?: boolean;
+  nestCompatible?: boolean;
 }
 
 export interface RMQClient {

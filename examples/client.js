@@ -1,21 +1,20 @@
 // examples/client.ts
-import { RMQClient } from '../src/client';
-import { RMQTimeoutError } from '../src/errors';
+const { RMQClient, RMQTimeoutError } = require('../dist');
 
 (async () => {
-        const client = await RMQClient.connect({
+        const client = new RMQClient({
             uri: 'amqp://user:drypkZ13j0L24zcf@localhost',
             appName: 'my-service',
-        });
-
+        })
+        await client.connect();
         // Отправка сообщения для создания пользователя
         try {
-            const userResponse: any = await client.send('create.user', {
+            const userResponse = await client.send('update.user', {
                 name: 'John Doe',
             }, {
                 timeout: null,
             });
-            console.log('Ответ от сервера на create.user:', userResponse);
+            console.log('Ответ от сервера на update.user:', userResponse);
             
         } catch (error) {
             if (error instanceof RMQTimeoutError) {

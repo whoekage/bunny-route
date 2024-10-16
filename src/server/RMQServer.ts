@@ -5,6 +5,7 @@ import { RMQConnectionManager } from '../core/RMQConnectionManager';
 import { HandlerRegistry } from '../core/HandlerRegistry';
 import { RMQServerOptions, HandlerOptions, ListenOptions, RMQServer as IRMQServer } from '../interfaces/server';
 import { HandlerFunction, RetryOptions } from '../interfaces/common';
+import { validateExchange, assertExchange } from '../utils/exchangeUtils';
 
 export class RMQServer implements IRMQServer {
     private appName: string;
@@ -35,12 +36,13 @@ export class RMQServer implements IRMQServer {
         this.retryExchangeName = `${this.exchange}.retry`;
         this.retryQueueName = `${this.mainQueueName}.retry`;
         this.dlqName = `${this.mainQueueName}.dlq`;
+        validateExchange(this.exchange);
     }
 
     private async initialize() {
         this.channel = await this.connectionManager.createChannel();
     
-        await this.channel!.assertExchange(this.exchange, 'direct', { durable: true });
+        await assertExchange(this.channel, this.exchange);
     
         await this.channel!.assertQueue(this.dlqName, { durable: true });
     
