@@ -5,6 +5,7 @@ Bunny Route is a high-performance, Express-inspired RabbitMQ client for Node.js,
 ## ✨ Features
 
 - Express-like architecture for familiar and intuitive usage
+- Powerful middleware system for pre- and post-processing of messages
 - Simplified RabbitMQ setup with automatic queue and exchange creation
 - Automatic connection management and recovery
 - Built-in retry mechanism for failed message processing
@@ -156,8 +157,115 @@ Bunny Route supports RPC-style communication:
 - Messages exceeding the maximum retry count are sent to a dead-letter queue (`${appName}.dlq`).
 - Connection errors are automatically handled with reconnection attempts.
 
+## 🎭 Middleware System
 
-### Nest.js Compatibility
+One of Bunny Route's most powerful features is its Express-inspired middleware system. The middleware pipeline allows you to create reusable processing chains for your messages, perfect for cross-cutting concerns like logging, validation, and error handling.
+
+### How Middleware Works
+Middleware functions in Bunny Route follow this signature:
+
+```typescript
+type MiddlewareFunction = (
+  context: HandlerContext,
+  next: () => Promise<void>,
+  reply: ReplyFunction
+) => Promise<void>;
+```
+
+Where:
+
+- `context`: Contains message details including content, routing key, and headers
+- `next`: Function to call the next middleware in the chain
+- `reply`: Function to send a response back to the client
+
+### Middleware Features
+
+- **Sequential Processing:** Middlewares are executed in the order they are added
+- **Flow Control:** Each middleware can decide whether to continue the chain by calling `next()`
+- **Early Response:** Middleware can send responses using `reply()` and prevent further processing
+- **Error Handling:** Catch and handle errors from subsequent middleware or message handlers
+- **Context Modification:** Add or modify data in the context for use in later middleware or handlers
+- **Headers Access:** Full access to message headers for metadata handling
+- **Reply Control:** Send multiple replies or format responses before they reach the client
+
+### Middleware Examples
+
+#### Basic Logging Middleware
+
+```javascript
+server.use(async (context, next, reply) => {
+  console.log(`[${new Date().toISOString()}] Incoming message:`, {
+    routingKey: context.routingKey,
+    content: context.content
+  });
+  
+  await next();
+  
+  console.log(`[${new Date().toISOString()}] Processing completed`);
+});
+```
+
+#### Example Authentication Middleware
+
+```javascript
+// Note: This is an example using a custom x-api-key header.
+// In a real RabbitMQ setup, you'd typically use built-in authentication mechanisms
+server.use(async (context, next, reply) => {
+  if (!context.headers['x-api-key']) {
+    reply({ error: 'Unauthorized: API key missing' });
+    return; // Stop middleware chain
+  }
+  
+  // Authenticate API key (example implementation)
+  if (!isValidApiKey(context.headers['x-api-key'])) {
+    reply({ error: 'Unauthorized: Invalid API key' });
+    return;
+  }
+  
+  await next();
+});
+```
+
+#### Request Timing Middleware
+
+```javascript
+server.use(async (context, next, reply) => {
+  const label = `message-${context.routingKey}`;
+  console.time(label);
+  
+  await next();
+  
+  console.timeEnd(label);
+});
+```
+
+#### Error Handling Middleware
+
+```javascript
+server.use(async (context, next, reply) => {
+  try {
+    await next();
+  } catch (error) {
+    console.error('Error processing message:', error);
+    reply({ 
+      error: error.message,
+      status: 'error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+```
+
+#### Best Practices
+
+- **Order Matters:** Place middleware in logical order (e.g., authentication before validation)
+- **Don't Forget next():** Always call `next()` unless you intentionally want to stop the chain
+- **Error Handling:** Use try-catch blocks in middleware to handle errors gracefully
+- **Keep it Focused:** Each middleware should have a single responsibility
+- **Performance Aware:** Be mindful of async operations and their impact on message processing
+
+
+## Nest.js Compatibility
 
 Bunny Route offers support for Nest.js microservices using RabbitMQ transport. This feature aligns with Nest.js's default RabbitMQ configuration.
 
