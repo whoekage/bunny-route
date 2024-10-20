@@ -3,8 +3,9 @@ import * as amqp from 'amqplib';
 import { ConsumeMessage } from 'amqplib';
 import { RMQConnectionManager } from '../core/RMQConnectionManager';
 import { HandlerRegistry } from '../core/HandlerRegistry';
+import { MiddlewareManager, MiddlewareFunction } from '../core/MiddlewareManager';
 import { RMQServerOptions, HandlerOptions, ListenOptions, RMQServer as IRMQServer } from '../interfaces/server';
-import { HandlerFunction, RetryOptions } from '../interfaces/common';
+import { HandlerFunction, RetryOptions, HandlerContext, ReplyFunction } from '../interfaces/common';
 import { validateExchange, assertExchange } from '../utils/exchangeUtils';
 
 export class RMQServer implements IRMQServer {
@@ -18,6 +19,7 @@ export class RMQServer implements IRMQServer {
     private retryExchangeName: string;
     private retryQueueName: string;
     private dlqName: string;
+    private middlewareManager: MiddlewareManager;
 
     constructor(options: RMQServerOptions) {
         if (!options.appName && !options.exchange) {
@@ -37,6 +39,7 @@ export class RMQServer implements IRMQServer {
         this.retryQueueName = `${this.mainQueueName}.retry`;
         this.dlqName = `${this.mainQueueName}.dlq`;
         validateExchange(this.exchange);
+        this.middlewareManager = new MiddlewareManager();
     }
 
     private async initialize() {
@@ -81,7 +84,7 @@ export class RMQServer implements IRMQServer {
         }
 
         await this.channel!.consume(this.mainQueueName, this.handleMessage.bind(this), { noAck: false });
-        console.log(`RMQServer '${this.appName}' слушает сообщения...`);
+        console.log(`RMQServer '${this.appName}' is listening for messages...`);
     }
 
     private async handleMessage(msg: ConsumeMessage | null) {
@@ -109,6 +112,8 @@ export class RMQServer implements IRMQServer {
                     }
                 };
     
+                const composedMiddleware = this.middlewareManager.compose(handler);
+    
                 const retryOptions = {
                     maxRetries: options.maxRetries ?? this.defaultRetryOptions.maxRetries,
                     retryTTL: options.retryTTL ?? this.defaultRetryOptions.retryTTL,
@@ -116,7 +121,7 @@ export class RMQServer implements IRMQServer {
                 };
     
                 try {
-                    await handler(context, reply);
+                    await composedMiddleware(context, async () => {}, reply);
                     this.channel!.ack(msg);
                 } catch (error) {
                     console.error(`Error processing routingKey '${originalRoutingKey}':`, error);
@@ -161,5 +166,9 @@ export class RMQServer implements IRMQServer {
                 }
             }
         }
+    }
+
+    public use(middleware: MiddlewareFunction): void {
+        this.middlewareManager.use(middleware);
     }
 }

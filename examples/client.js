@@ -7,27 +7,49 @@ const { RMQClient, RMQTimeoutError } = require('../dist');
             appName: 'my-service',
         })
         await client.connect();
-        // Отправка сообщения для создания пользователя
+        // Sending a message to create a user
+        const userCreateResponse = await client.send('create.user', {
+            name: 'John Doe',
+        }, {
+            timeout: null,
+        }).catch((error) => {
+            console.error('Error sending create.user message:', error);
+            return null;
+        });
+        console.log('Server response to create.user:', userCreateResponse);
+        
         try {
             const userResponse = await client.send('update.user', {
                 name: 'John Doe',
             }, {
-                timeout: null,
+                timeout: 1000,
             });
-            console.log('Ответ от сервера на update.user:', userResponse);
+            console.log('Server response to update.user:', userResponse);
             
         } catch (error) {
             if (error instanceof RMQTimeoutError) {
-                console.error('Время ожидания ответа истекло');
+                console.error('Response timeout exceeded');
             } else {
-                console.error('Ошибка при создании пользователя:', error);
+                console.error('Error creating user:', error);
             }
         }
         
 
-        // Отправка сообщения для обновления пользователя
-       
+        // Sending a message to delete the user
+        const userDeleteResponse = await client.send('delete.user', {
+            id: userCreateResponse.userId,
+        }, {
+            timeout: null,
+        });
+        console.log('Server response to delete.user:', userDeleteResponse);
+        
+        const userDeleteResponse2 = await client.send('delete.user', {
+            id: null,
+        }, {
+            timeout: null,
+        });
+        console.log('Server response to delete.user:', userDeleteResponse2);
 
-        // Закрываем клиентское соединение
+        // Closing the client connection
         await client.close();
 })();
