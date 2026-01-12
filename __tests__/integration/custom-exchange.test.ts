@@ -34,13 +34,10 @@ describe('Custom Exchange Integration', () => {
     await server.listen({ prefetch: 1 });
     await client.connect();
 
-    client.send(
-      'test-route',
-      { test: 'message' },
-      {
-        timeout: null,
-      },
-    );
+    // Fire-and-forget: catch to prevent unhandled rejection on close
+    client
+      .send('test-route', { test: 'message' }, { timeout: null })
+      .catch(() => {}); // Ignore - will be rejected on close
 
     // Wait for message to be processed
     await new Promise((resolve) => setTimeout(resolve, 1000));
