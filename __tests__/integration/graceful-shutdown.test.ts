@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { RMQClient, RMQConnectionManager, RMQServer, performGracefulShutdown } from '../../src';
+import { performGracefulShutdown, RMQClient, RMQConnectionManager, RMQServer } from '../../src';
 import { getRabbitMQUri } from '../setup/rabbitmq';
 
 describe('Graceful Shutdown', () => {

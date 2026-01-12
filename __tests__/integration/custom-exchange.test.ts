@@ -35,9 +35,7 @@ describe('Custom Exchange Integration', () => {
     await client.connect();
 
     // Fire-and-forget: catch to prevent unhandled rejection on close
-    client
-      .send('test-route', { test: 'message' }, { timeout: null })
-      .catch(() => {}); // Ignore - will be rejected on close
+    client.send('test-route', { test: 'message' }, { timeout: null }).catch(() => {}); // Ignore - will be rejected on close
 
     // Wait for message to be processed
     await new Promise((resolve) => setTimeout(resolve, 1000));

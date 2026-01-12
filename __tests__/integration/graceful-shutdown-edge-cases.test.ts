@@ -239,7 +239,7 @@ describe('Graceful Shutdown Edge Cases', () => {
       });
 
       // Handler that replies after delay
-      server.on('delayed-reply', async (ctx, reply) => {
+      server.on('delayed-reply', async (_ctx, reply) => {
         await new Promise((resolve) => setTimeout(resolve, 500));
         reply({ success: true });
       });
@@ -248,7 +248,7 @@ describe('Graceful Shutdown Edge Cases', () => {
       await client.connect();
 
       // This request should complete even with force=false
-      const requestPromise = client.send('delayed-reply', {}, { timeout: 5000 });
+      const _requestPromise = client.send('delayed-reply', {}, { timeout: 5000 });
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 
