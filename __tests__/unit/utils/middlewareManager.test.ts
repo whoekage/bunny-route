@@ -1,5 +1,4 @@
-// __tests__/unit/core/MiddlewareManager.test.ts
-
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { MiddlewareManager, MiddlewareFunction } from '../../../src/core/MiddlewareManager';
 import { HandlerContext, ReplyFunction, HandlerFunction } from '../../../src/interfaces/common';
 
@@ -7,13 +6,13 @@ describe('MiddlewareManager', () => {
   let middlewareManager: MiddlewareManager;
   let context: HandlerContext;
   let reply: ReplyFunction;
-  let handler: jest.MockedFunction<HandlerFunction>;
+  let handler: Mock<HandlerFunction>;
 
   beforeEach(() => {
     middlewareManager = new MiddlewareManager();
     context = { content: {}, routingKey: 'test.routing.key', headers: {} };
-    reply = jest.fn();
-    handler = jest.fn().mockResolvedValue(undefined);
+    reply = vi.fn();
+    handler = vi.fn().mockResolvedValue(undefined);
   });
 
   it('should call the handler without any middleware', async () => {
@@ -25,11 +24,11 @@ describe('MiddlewareManager', () => {
   });
 
   it('should execute middleware and handler in sequence', async () => {
-    const middleware1 = jest.fn(async (ctx, next, rep) => {
+    const middleware1 = vi.fn(async (ctx, next, rep) => {
       ctx.headers['middleware1'] = true;
       await next();
     });
-    const middleware2 = jest.fn(async (ctx, next, rep) => {
+    const middleware2 = vi.fn(async (ctx, next, rep) => {
       ctx.headers['middleware2'] = true;
       await next();
     });
@@ -49,11 +48,11 @@ describe('MiddlewareManager', () => {
   });
 
   it('should skip subsequent middleware if next is not called', async () => {
-    const middleware1 = jest.fn(async (ctx, next, rep) => {
+    const middleware1 = vi.fn(async (ctx, next, rep) => {
       ctx.headers['middleware1'] = true;
       // Not calling next()
     });
-    const middleware2 = jest.fn(async (ctx, next, rep) => {
+    const middleware2 = vi.fn(async (ctx, next, rep) => {
       ctx.headers['middleware2'] = true;
       await next();
     });
@@ -73,10 +72,10 @@ describe('MiddlewareManager', () => {
   });
 
   it('should handle exceptions thrown in middleware', async () => {
-    const errorMiddleware = jest.fn(async (ctx, next, rep) => {
+    const errorMiddleware = vi.fn(async (ctx, next, rep) => {
       throw new Error('Middleware error');
     });
-    const middleware2 = jest.fn(async (ctx, next, rep) => {
+    const middleware2 = vi.fn(async (ctx, next, rep) => {
       await next();
     });
 
@@ -93,11 +92,11 @@ describe('MiddlewareManager', () => {
   });
 
   it('should allow middleware to terminate the chain without calling next', async () => {
-    const terminatingMiddleware = jest.fn(async (ctx, next, rep) => {
+    const terminatingMiddleware = vi.fn(async (ctx, next, rep) => {
       ctx.headers['terminated'] = true;
       // Intentionally not calling next()
     });
-    const middleware2 = jest.fn(async (ctx, next, rep) => {
+    const middleware2 = vi.fn(async (ctx, next, rep) => {
       await next();
     });
 
@@ -115,7 +114,7 @@ describe('MiddlewareManager', () => {
   });
 
   it('should allow middleware to use the reply function', async () => {
-    const replyMiddleware = jest.fn(async (ctx, next, rep) => {
+    const replyMiddleware = vi.fn(async (ctx, next, rep) => {
       rep({ message: 'Response from middleware' });
       await next();
     });
@@ -131,4 +130,3 @@ describe('MiddlewareManager', () => {
     expect(handler).toHaveBeenCalled();
   });
 });
-

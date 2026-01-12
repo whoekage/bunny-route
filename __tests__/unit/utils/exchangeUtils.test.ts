@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest';
 import { isReservedExchange, validateExchange, assertExchange } from '../../../src/utils/exchangeUtils';
 
 describe('Exchange Utilities', () => {
@@ -18,10 +19,10 @@ describe('Exchange Utilities', () => {
   });
 
   describe('validateExchange', () => {
-    let consoleWarnSpy: jest.SpyInstance;
+    let consoleWarnSpy: MockInstance;
 
     beforeEach(() => {
-      consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     });
 
     afterEach(() => {
@@ -45,12 +46,12 @@ describe('Exchange Utilities', () => {
   });
 
   describe('assertExchange', () => {
-    let channelMock: { assertExchange: jest.Mock };
-    let consoleLogSpy: jest.SpyInstance;
+    let channelMock: { assertExchange: ReturnType<typeof vi.fn> };
+    let consoleLogSpy: MockInstance;
 
     beforeEach(() => {
-      channelMock = { assertExchange: jest.fn() };
-      consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+      channelMock = { assertExchange: vi.fn() };
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     });
 
     afterEach(() => {

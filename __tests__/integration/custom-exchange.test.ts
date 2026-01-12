@@ -1,48 +1,49 @@
+import { describe, it, expect, afterEach } from 'vitest';
 import { RMQServer, RMQClient, RMQConnectionManager } from '../../src';
+import { getRabbitMQUri } from '../setup/rabbitmq';
 
 describe('Custom Exchange Integration', () => {
-    // Use env variable or default docker-compose credentials
-    const RABBITMQ_URI = process.env.RABBITMQ_URI || 'amqp://user:password@localhost';
+  const rabbitmqUri = getRabbitMQUri();
 
-    afterEach(async () => {
-      // Reset connection manager to stop any reconnection attempts
-      RMQConnectionManager.resetInstance();
+  afterEach(() => {
+    RMQConnectionManager.resetInstance();
+  });
+
+  it('should handle messages using custom exchange', async () => {
+    const exchange = 'custom-exchange';
+
+    const server = new RMQServer({
+      uri: rabbitmqUri,
+      appName: 'test-app',
+      exchange,
+      reconnect: { maxAttempts: 3 },
     });
 
-    it('should handle messages using custom exchange', async () => {
-      const exchange = 'custom-exchange';
+    const client = new RMQClient({
+      uri: rabbitmqUri,
+      appName: 'test-app',
+      exchange,
+    });
 
-      const server = new RMQServer({
-        uri: RABBITMQ_URI,
-        appName: 'test-app',
-        exchange,
-        reconnect: { maxAttempts: 3 }, // Limit reconnection attempts for tests
-      });
+    let receivedMessage: any = null;
 
-      const client = new RMQClient({
-        uri: RABBITMQ_URI,
-        appName: 'test-app',
-        exchange,
-      });
+    server.on('test-route', async (context, reply) => {
+      receivedMessage = context.content;
+    });
 
-      await server.listen({ prefetch: 1 });
-      await client.connect();
+    await server.listen({ prefetch: 1 });
+    await client.connect();
 
-      // Set up message handler
-      server.on('test-route', async (data) => {
-        console.log('Received message:', data);
-        expect(data).toEqual({ test: 'message' });
-      });
+    client.send('test-route', { test: 'message' }, {
+      timeout: null,
+    });
 
-      // Send message
-      client.send('test-route', { test: 'message' }, {
-        timeout: null,
-      });
+    // Wait for message to be processed
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Wait for message to be processed
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    expect(receivedMessage).toEqual({ test: 'message' });
 
-      await client.close();
-      await server.close();
-    }, 20000);
+    await client.close();
+    await server.close();
   });
+});

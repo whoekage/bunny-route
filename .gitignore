@@ -25,3 +25,6 @@ Thumbs.db
 
 # Claude Code
 CLAUDE.md
+
+# Test artifacts
+__tests__/setup/.rabbitmq-state.json
