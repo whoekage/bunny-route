@@ -2,7 +2,7 @@
  * Isolated test for resource leak bug in RMQConnectionManager.
  * Requires mocking amqplib to simulate slow connection that completes after timeout.
  */
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Hoisted mock control - must be defined before vi.mock
 const mockState = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const mockState = vi.hoisted(() => ({
 vi.mock('amqplib', () => {
   const mockConnect = vi.fn(async () => {
     if (mockState.connectDelay > 0) {
-      await new Promise(resolve => setTimeout(resolve, mockState.connectDelay));
+      await new Promise((resolve) => setTimeout(resolve, mockState.connectDelay));
       return {
         close: mockState.connectionCloseSpy,
         on: vi.fn(),
@@ -62,10 +62,12 @@ describe('RMQConnectionManager Resource Leak', () => {
     await expect(manager.getConnection()).rejects.toThrow('Connection timeout');
 
     // Wait for the "leaked" connection to be established (500ms)
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     // FIXED: The connection should now be closed automatically
-    console.log(`Connection close called: ${mockState.connectionCloseSpy!.mock.calls.length} times`);
+    console.log(
+      `Connection close called: ${mockState.connectionCloseSpy?.mock.calls.length} times`,
+    );
 
     // Connection that was established after timeout should be closed
     expect(mockState.connectionCloseSpy).toHaveBeenCalled();

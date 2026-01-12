@@ -1,5 +1,5 @@
 // ./src/interfaces/common.ts
-import { Connection, Channel, Options } from 'amqplib';
+import type { Channel, Connection, Options } from 'amqplib';
 
 export interface RMQOptions {
   uri: string;

@@ -1,5 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest';
-import { isReservedExchange, validateExchange, assertExchange } from '../../../src/utils/exchangeUtils';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import {
+  assertExchange,
+  isReservedExchange,
+  validateExchange,
+} from '../../../src/utils/exchangeUtils';
 
 describe('Exchange Utilities', () => {
   describe('isReservedExchange', () => {
@@ -60,13 +64,17 @@ describe('Exchange Utilities', () => {
 
     it('should assert exchange for non-reserved exchanges', async () => {
       await assertExchange(channelMock as any, 'my-exchange');
-      expect(channelMock.assertExchange).toHaveBeenCalledWith('my-exchange', 'direct', { durable: true });
+      expect(channelMock.assertExchange).toHaveBeenCalledWith('my-exchange', 'direct', {
+        durable: true,
+      });
     });
 
     it('should not assert exchange for reserved exchanges', async () => {
       await assertExchange(channelMock as any, 'amq.direct');
       expect(channelMock.assertExchange).not.toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith('Skipping assertion for reserved exchange "amq.direct".');
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        'Skipping assertion for reserved exchange "amq.direct".',
+      );
     });
   });
 });

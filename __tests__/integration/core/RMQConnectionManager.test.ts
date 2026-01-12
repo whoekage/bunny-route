@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
-import { RabbitMQContainer, StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
-import { getRabbitMQUri } from '../../setup/rabbitmq';
+import { RabbitMQContainer, type StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RMQConnectionManager } from '../../../src/core/RMQConnectionManager';
+import { getRabbitMQUri } from '../../setup/rabbitmq';
 
 describe('RMQConnectionManager', () => {
   // Shared container URI from globalSetup
@@ -136,7 +136,7 @@ describe('RMQConnectionManager', () => {
         })
         .withExposedPorts({
           container: 5672,
-          host: parseInt(new URL(containerUri).port),
+          host: parseInt(new URL(containerUri).port, 10),
         } as any)
         .start();
 
@@ -203,7 +203,7 @@ describe('RMQConnectionManager', () => {
       });
 
       const delays: number[] = [];
-      manager.on('reconnecting', (attempt, delayMs) => {
+      manager.on('reconnecting', (_attempt, delayMs) => {
         delays.push(delayMs);
       });
 
@@ -395,7 +395,9 @@ describe('RMQConnectionManager', () => {
       });
 
       // Call getConnection 5 times simultaneously
-      const promises = Array(5).fill(null).map(() => manager.getConnection());
+      const promises = Array(5)
+        .fill(null)
+        .map(() => manager.getConnection());
       const connections = await Promise.all(promises);
 
       // All should be the same connection
@@ -488,7 +490,9 @@ describe('RMQConnectionManager', () => {
       const error = await errorPromise;
       const elapsed = Date.now() - startTime;
 
-      console.log(`Timeout + reconnect took ${elapsed}ms, attempts: ${reconnectingSpy.mock.calls.length}`);
+      console.log(
+        `Timeout + reconnect took ${elapsed}ms, attempts: ${reconnectingSpy.mock.calls.length}`,
+      );
       console.log(`Error: ${error.message}`);
 
       // Should have reconnected 3 times (maxAttempts)

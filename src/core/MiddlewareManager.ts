@@ -1,9 +1,9 @@
-import { HandlerContext, ReplyFunction, HandlerFunction } from "../interfaces";
+import type { HandlerContext, HandlerFunction, ReplyFunction } from '../interfaces';
 
 export type MiddlewareFunction = (
   context: HandlerContext,
   next: () => Promise<void>,
-  reply: ReplyFunction
+  reply: ReplyFunction,
 ) => Promise<void>;
 
 export class MiddlewareManager {
@@ -14,7 +14,7 @@ export class MiddlewareManager {
   }
 
   public compose(handler: HandlerFunction): MiddlewareFunction {
-    return async (context: HandlerContext, next: () => Promise<void>, reply: ReplyFunction) => {
+    return async (context: HandlerContext, _next: () => Promise<void>, reply: ReplyFunction) => {
       let index = -1;
 
       const run = async () => {

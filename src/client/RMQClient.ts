@@ -1,11 +1,12 @@
 // ./src/client/RMQClient.ts
-import * as amqp from 'amqplib';
+
+import { EventEmitter } from 'node:events';
+import type * as amqp from 'amqplib';
 import { v4 as uuidv4 } from 'uuid';
-import { EventEmitter } from 'events';
-import { RMQClientOptions, SendOptions, RMQClient as IRMQClient } from '../interfaces/client';
 import { RMQConnectionManager } from '../core/RMQConnectionManager';
-import { RMQTimeoutError, RMQPublishError, RMQConnectionError } from '../errors';
-import { validateExchange, assertExchange } from '../utils/exchangeUtils';
+import { RMQConnectionError, RMQPublishError, RMQTimeoutError } from '../errors';
+import type { RMQClient as IRMQClient, RMQClientOptions, SendOptions } from '../interfaces/client';
+import { assertExchange, validateExchange } from '../utils/exchangeUtils';
 
 export class RMQClient extends EventEmitter implements IRMQClient {
   private exchange: string;
@@ -16,7 +17,7 @@ export class RMQClient extends EventEmitter implements IRMQClient {
   private responseEmitter: EventEmitter;
   private isConnected: boolean = false;
 
-  constructor(private options: RMQClientOptions) {
+  constructor(options: RMQClientOptions) {
     super();
 
     this.appName = options.appName;
@@ -76,7 +77,7 @@ export class RMQClient extends EventEmitter implements IRMQClient {
           this.channel.ack(msg);
         }
       },
-      { noAck: false }
+      { noAck: false },
     );
   }
 
@@ -131,20 +132,20 @@ export class RMQClient extends EventEmitter implements IRMQClient {
       this.responseEmitter.once(correlationId, cleanupAndResolve);
 
       try {
-        const sent = this.channel!.publish(
+        const sent = this.channel?.publish(
           this.exchange,
           routingKey,
           Buffer.from(JSON.stringify(message)),
           {
-            replyTo: this.replyQueue!.queue,
+            replyTo: this.replyQueue?.queue,
             correlationId,
             persistent: options.persistent ?? true,
-          }
+          },
         );
         if (!sent) {
           if (timer) clearTimeout(timer);
           this.responseEmitter.removeAllListeners(correlationId);
-          reject(new RMQPublishError('Channel\'s internal buffer is full'));
+          reject(new RMQPublishError("Channel's internal buffer is full"));
         }
       } catch (error) {
         if (timer) clearTimeout(timer);

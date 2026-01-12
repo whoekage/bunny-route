@@ -1,6 +1,6 @@
-import { RabbitMQContainer, StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
-import { writeFileSync } from 'fs';
-import { join } from 'path';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { RabbitMQContainer, type StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
 
 const RABBITMQ_USER = 'test';
 const RABBITMQ_PASS = 'test';

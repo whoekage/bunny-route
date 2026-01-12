@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const STATE_FILE = join(__dirname, '.rabbitmq-state.json');
 
@@ -12,7 +12,7 @@ function readState(): RabbitMQState {
   if (!existsSync(STATE_FILE)) {
     throw new Error(
       'RabbitMQ state file not found. Make sure globalSetup has run.\n' +
-      'Run tests with: npm test'
+        'Run tests with: npm test',
     );
   }
   return JSON.parse(readFileSync(STATE_FILE, 'utf-8'));

@@ -1,18 +1,17 @@
 // src/core/RMQConnectionManager.ts
-import amqp, { Connection, Channel } from 'amqplib';
-import { EventEmitter } from 'events';
+
+import { EventEmitter } from 'node:events';
+import amqp, { type Channel, type Connection } from 'amqplib';
+import type { ConnectionManager } from '../interfaces/common';
 import {
-  ConnectionManager,
-} from '../interfaces/common';
-import {
-  ConnectionManagerOptions,
-  ConnectionState,
-  ReconnectOptions,
-  ChannelSetupFn,
-  RegisteredChannel,
-  DEFAULT_RECONNECT_OPTIONS,
-  DEFAULT_HEARTBEAT,
   AMQP_NON_RECOVERABLE_ERRORS,
+  type ChannelSetupFn,
+  type ConnectionManagerOptions,
+  type ConnectionState,
+  DEFAULT_HEARTBEAT,
+  DEFAULT_RECONNECT_OPTIONS,
+  type ReconnectOptions,
+  type RegisteredChannel,
 } from '../interfaces/connection';
 
 export class RMQConnectionManager extends EventEmitter implements ConnectionManager {
@@ -46,21 +45,21 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
    */
   public static getInstance(
     uri: string,
-    options?: Omit<ConnectionManagerOptions, 'uri'>
+    options?: Omit<ConnectionManagerOptions, 'uri'>,
   ): RMQConnectionManager {
-    if (!this.instance) {
-      this.instance = new RMQConnectionManager({ uri, ...options });
+    if (!RMQConnectionManager.instance) {
+      RMQConnectionManager.instance = new RMQConnectionManager({ uri, ...options });
     }
-    return this.instance;
+    return RMQConnectionManager.instance;
   }
 
   /**
    * Reset singleton instance - useful for testing
    */
   public static resetInstance(): void {
-    if (this.instance) {
-      this.instance.close().catch(() => {});
-      this.instance = null;
+    if (RMQConnectionManager.instance) {
+      RMQConnectionManager.instance.close().catch(() => {});
+      RMQConnectionManager.instance = null;
     }
   }
 
@@ -126,7 +125,9 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
           clearTimeout(timeout);
           if (timedOut) {
             // Connection established after timeout - close it to prevent leak
-            console.warn('[RMQConnectionManager] Connection established after timeout, closing to prevent leak');
+            console.warn(
+              '[RMQConnectionManager] Connection established after timeout, closing to prevent leak',
+            );
             connection.close().catch(() => {});
             return;
           }
@@ -232,7 +233,7 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
 
     if (this.reconnectAttempt >= this.reconnectOptions.maxAttempts) {
       const error = new Error(
-        `Max reconnection attempts (${this.reconnectOptions.maxAttempts}) reached`
+        `Max reconnection attempts (${this.reconnectOptions.maxAttempts}) reached`,
       );
       this.emit('error', error);
       return;
@@ -242,7 +243,7 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
     const baseDelay = Math.min(
       this.reconnectOptions.maxDelayMs,
       this.reconnectOptions.initialDelayMs *
-        Math.pow(this.reconnectOptions.backoffMultiplier, this.reconnectAttempt)
+        this.reconnectOptions.backoffMultiplier ** this.reconnectAttempt,
     );
     const delay = Math.random() * baseDelay;
 
@@ -251,13 +252,13 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
     this.emit('reconnecting', this.reconnectAttempt, Math.round(delay));
 
     console.info(
-      `[RMQConnectionManager] Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempt})`
+      `[RMQConnectionManager] Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempt})`,
     );
 
     this.reconnectTimer = setTimeout(async () => {
       try {
         await this.reconnect();
-      } catch (error) {
+      } catch (_error) {
         // Will be handled in connect() -> scheduleReconnect()
       }
     }, delay);
@@ -297,9 +298,11 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
    * Recreate all registered channels after reconnection
    */
   private async recreateChannels(): Promise<void> {
+    if (!this.connection) return;
+
     for (const registered of this.registeredChannels) {
       try {
-        const channel = await this.connection!.createChannel();
+        const channel = await this.connection.createChannel();
         registered.channel = channel;
 
         // Setup channel error handlers
@@ -310,7 +313,10 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
           await registered.setup(channel);
         }
       } catch (error) {
-        console.error('[RMQConnectionManager] Failed to recreate channel:', (error as Error).message);
+        console.error(
+          '[RMQConnectionManager] Failed to recreate channel:',
+          (error as Error).message,
+        );
       }
     }
   }
@@ -404,8 +410,7 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
     }
 
     // Check for authentication errors
-    if (error.message?.includes('ACCESS_REFUSED') ||
-        error.message?.includes('authentication')) {
+    if (error.message?.includes('ACCESS_REFUSED') || error.message?.includes('authentication')) {
       return true;
     }
 
@@ -429,7 +434,7 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
         if (registered.channel) {
           await registered.channel.close();
         }
-      } catch (error) {
+      } catch (_error) {
         // Ignore errors when closing channels
       }
     }
@@ -439,7 +444,7 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
     if (this.connection) {
       try {
         await this.connection.close();
-      } catch (error) {
+      } catch (_error) {
         // Ignore errors when closing connection
       }
       this.connection = null;

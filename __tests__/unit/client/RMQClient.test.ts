@@ -1,4 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach, vi, type MockInstance } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from 'vitest';
 import { RMQClient } from '../../../src/client/RMQClient';
 import { RMQConnectionManager } from '../../../src/core/RMQConnectionManager';
 import { getRabbitMQUri } from '../../setup/rabbitmq';
@@ -22,7 +31,7 @@ describe('RMQClient', () => {
     });
 
     it('should warn when using default exchange', () => {
-      const client = new RMQClient({
+      const _client = new RMQClient({
         uri: rabbitmqUri,
         appName: 'test-app',
         exchange: '',
@@ -32,7 +41,7 @@ describe('RMQClient', () => {
 
     it('should warn when using reserved exchange', () => {
       consoleWarnSpy.mockClear();
-      const client = new RMQClient({
+      const _client = new RMQClient({
         uri: rabbitmqUri,
         appName: 'test-app',
         exchange: 'amq.direct',
@@ -42,7 +51,7 @@ describe('RMQClient', () => {
 
     it('should not warn for custom exchanges', () => {
       consoleWarnSpy.mockClear();
-      const client = new RMQClient({
+      const _client = new RMQClient({
         uri: rabbitmqUri,
         appName: 'test-app',
         exchange: 'custom-exchange',

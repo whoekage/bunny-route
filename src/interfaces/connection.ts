@@ -1,5 +1,5 @@
 // src/interfaces/connection.ts
-import { Channel } from 'amqplib';
+import type { Channel } from 'amqplib';
 
 /**
  * Reconnection strategy options

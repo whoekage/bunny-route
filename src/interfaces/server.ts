@@ -1,7 +1,8 @@
 // ./src/interfaces/server.ts
-import { RMQOptions, HandlerFunction, RetryOptions, HandlerContext, ReplyFunction } from './common';
-import { ReconnectOptions } from './connection';
-import { MiddlewareFunction } from '../core/MiddlewareManager';
+
+import type { MiddlewareFunction } from '../core/MiddlewareManager';
+import type { HandlerFunction, RetryOptions, RMQOptions } from './common';
+import type { ReconnectOptions } from './connection';
 
 export interface RMQServerOptions extends RMQOptions {
   retryOptions?: Partial<RetryOptions>;
