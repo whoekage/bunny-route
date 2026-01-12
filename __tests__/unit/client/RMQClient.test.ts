@@ -16,11 +16,24 @@ describe('RMQClient', () => {
       assertQueue: jest.fn().mockResolvedValue({ queue: 'mock-queue' }),
       consume: jest.fn(),
       publish: jest.fn().mockReturnValue(true),
+      close: jest.fn().mockResolvedValue(undefined),
     };
 
     mockConnectionManager = {
       getInstance: jest.fn().mockReturnThis(),
-      createChannel: jest.fn().mockResolvedValue(mockChannel),
+      createChannel: jest.fn().mockImplementation(async (setup?: (channel: any) => Promise<void>) => {
+        // Call setup callback if provided (like real implementation)
+        if (setup) {
+          await setup(mockChannel);
+        }
+        return mockChannel;
+      }),
+      on: jest.fn().mockReturnThis(),
+      off: jest.fn().mockReturnThis(),
+      emit: jest.fn().mockReturnThis(),
+      getState: jest.fn().mockReturnValue('connected'),
+      isConnected: jest.fn().mockReturnValue(true),
+      unregisterChannel: jest.fn(),
     } as any;
 
     (RMQConnectionManager.getInstance as jest.Mock).mockReturnValue(mockConnectionManager);
@@ -85,5 +98,24 @@ describe('RMQClient', () => {
     }), 'amq.direct');
   });
 
-  // Add more tests for other RMQClient methods...
+  it('should setup connection listeners on construction', () => {
+    client = new RMQClient({
+      uri: 'amqp://localhost',
+      appName: 'test-app',
+    });
+    expect(mockConnectionManager.on).toHaveBeenCalledWith('disconnected', expect.any(Function));
+    expect(mockConnectionManager.on).toHaveBeenCalledWith('reconnecting', expect.any(Function));
+    expect(mockConnectionManager.on).toHaveBeenCalledWith('reconnected', expect.any(Function));
+    expect(mockConnectionManager.on).toHaveBeenCalledWith('error', expect.any(Function));
+  });
+
+  it('should unregister channel on close', async () => {
+    client = new RMQClient({
+      uri: 'amqp://localhost',
+      appName: 'test-app',
+    });
+    await client.connect();
+    await client.close();
+    expect(mockConnectionManager.unregisterChannel).toHaveBeenCalledWith(mockChannel);
+  });
 });

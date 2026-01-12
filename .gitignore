@@ -22,3 +22,6 @@ Thumbs.db
 
 # Архивы npm
 *.tgz
+
+# Claude Code
+CLAUDE.md
