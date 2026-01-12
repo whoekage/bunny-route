@@ -28,3 +28,4 @@ CLAUDE.md
 
 # Test artifacts
 __tests__/setup/.rabbitmq-state.json
+coverage/

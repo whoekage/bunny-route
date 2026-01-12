@@ -15,7 +15,8 @@
     "start": "node --experimental-strip-types src/index.ts",
     "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node src/index.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "files": [
     "dist"
@@ -59,6 +60,7 @@
     "@testcontainers/rabbitmq": "^11.11.0",
     "@types/amqplib": "^0.10.5",
     "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "testcontainers": "^11.11.0",
     "ts-node": "^10.9.2",
     "tsc-esm": "^1.0.4",
