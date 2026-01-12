@@ -16,6 +16,8 @@ export interface ReconnectOptions {
   maxDelayMs: number;
   /** Backoff multiplier. Default: 2 */
   backoffMultiplier: number;
+  /** Connection attempt timeout in milliseconds. Default: 10000 */
+  connectionTimeoutMs: number;
 }
 
 /**
@@ -100,6 +102,7 @@ export const DEFAULT_RECONNECT_OPTIONS: Required<ReconnectOptions> = {
   initialDelayMs: 1000,
   maxDelayMs: 30000,
   backoffMultiplier: 2,
+  connectionTimeoutMs: 10000,
 };
 
 /** Default heartbeat in seconds */

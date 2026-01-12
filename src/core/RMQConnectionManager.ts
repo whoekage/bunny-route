@@ -16,7 +16,7 @@ import {
 } from '../interfaces/connection';
 
 export class RMQConnectionManager extends EventEmitter implements ConnectionManager {
-  private static instances: Map<string, RMQConnectionManager> = new Map();
+  private static instance: RMQConnectionManager | null = null;
 
   private uri: string;
   private heartbeat: number;
@@ -42,33 +42,25 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
   }
 
   /**
-   * Get singleton instance for URI
+   * Get singleton instance
    */
   public static getInstance(
     uri: string,
     options?: Omit<ConnectionManagerOptions, 'uri'>
   ): RMQConnectionManager {
-    if (!this.instances.has(uri)) {
-      this.instances.set(uri, new RMQConnectionManager({ uri, ...options }));
+    if (!this.instance) {
+      this.instance = new RMQConnectionManager({ uri, ...options });
     }
-    return this.instances.get(uri)!;
+    return this.instance;
   }
 
   /**
-   * Reset instance(s) - useful for testing
+   * Reset singleton instance - useful for testing
    */
-  public static resetInstance(uri?: string): void {
-    if (uri) {
-      const instance = this.instances.get(uri);
-      if (instance) {
-        instance.close().catch(() => {});
-        this.instances.delete(uri);
-      }
-    } else {
-      for (const instance of this.instances.values()) {
-        instance.close().catch(() => {});
-      }
-      this.instances.clear();
+  public static resetInstance(): void {
+    if (this.instance) {
+      this.instance.close().catch(() => {});
+      this.instance = null;
     }
   }
 
@@ -116,15 +108,48 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
   }
 
   /**
+   * Connect to RabbitMQ with timeout
+   */
+  private async connectWithTimeout(): Promise<Connection> {
+    const timeoutMs = this.reconnectOptions.connectionTimeoutMs;
+    let timedOut = false;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        reject(new Error(`Connection timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      amqp
+        .connect(this.uri, { heartbeat: this.heartbeat })
+        .then((connection) => {
+          clearTimeout(timeout);
+          if (timedOut) {
+            // Connection established after timeout - close it to prevent leak
+            console.warn('[RMQConnectionManager] Connection established after timeout, closing to prevent leak');
+            connection.close().catch(() => {});
+            return;
+          }
+          resolve(connection);
+        })
+        .catch((error) => {
+          clearTimeout(timeout);
+          if (!timedOut) {
+            reject(error);
+          }
+          // If timed out, ignore the error - we already rejected
+        });
+    });
+  }
+
+  /**
    * Connect to RabbitMQ
    */
   private async connect(): Promise<Connection> {
     this.state = 'connecting';
 
     try {
-      this.connection = await amqp.connect(this.uri, {
-        heartbeat: this.heartbeat,
-      });
+      this.connection = await this.connectWithTimeout();
 
       this.setupConnectionListeners();
       this.state = 'connected';
@@ -243,9 +268,7 @@ export class RMQConnectionManager extends EventEmitter implements ConnectionMana
    */
   private async reconnect(): Promise<void> {
     try {
-      this.connection = await amqp.connect(this.uri, {
-        heartbeat: this.heartbeat,
-      });
+      this.connection = await this.connectWithTimeout();
 
       this.setupConnectionListeners();
       this.state = 'connected';

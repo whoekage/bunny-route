@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { RabbitMQContainer, StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
-import { RMQConnectionManager } from '../../../src/core/RMQConnectionManager';
 import { getRabbitMQUri } from '../../setup/rabbitmq';
+import { RMQConnectionManager } from '../../../src/core/RMQConnectionManager';
 
 describe('RMQConnectionManager', () => {
   // Shared container URI from globalSetup
@@ -366,44 +366,18 @@ describe('RMQConnectionManager', () => {
   // GROUP F: Singleton Pattern
   // ============================================================================
   describe('Group F: Singleton Pattern', () => {
-    it('F1: should return same instance for same URI', () => {
+    it('F1: should return same instance on multiple calls', () => {
       const manager1 = RMQConnectionManager.getInstance(sharedUri);
       const manager2 = RMQConnectionManager.getInstance(sharedUri);
 
       expect(manager1).toBe(manager2);
     });
 
-    it('F2: should return different instances for different URIs', () => {
-      const manager1 = RMQConnectionManager.getInstance(sharedUri);
-      const manager2 = RMQConnectionManager.getInstance('amqp://different:5672');
-
-      expect(manager1).not.toBe(manager2);
-    });
-
-    it('F3: POTENTIAL BUG - second getInstance call with different options should warn or update', () => {
-      // First call with maxAttempts: 3
-      const manager1 = RMQConnectionManager.getInstance(sharedUri, {
-        reconnect: { maxAttempts: 3 },
-      });
-
-      // Second call with maxAttempts: 10 - these options are IGNORED
-      const manager2 = RMQConnectionManager.getInstance(sharedUri, {
-        reconnect: { maxAttempts: 10 },
-      });
-
-      // Both should be same instance
-      expect(manager1).toBe(manager2);
-
-      // BUG: There's no way to know that second options were ignored
-      // This could lead to confusing behavior in production
-      // Test documents this behavior
-    });
-
-    it('F4: resetInstance should remove instance', async () => {
+    it('F2: resetInstance should remove instance', async () => {
       const manager1 = RMQConnectionManager.getInstance(sharedUri);
       await manager1.getConnection();
 
-      RMQConnectionManager.resetInstance(sharedUri);
+      RMQConnectionManager.resetInstance();
 
       const manager2 = RMQConnectionManager.getInstance(sharedUri);
 
@@ -461,36 +435,70 @@ describe('RMQConnectionManager', () => {
       expect(reconnectingSpy.mock.calls.length).toBeLessThanOrEqual(1);
     });
 
-    it('G3: should handle connection timeout gracefully', async () => {
+    it('G3: should timeout connection attempt when host is unreachable', async () => {
       // Connect to a non-routable IP to simulate timeout
       // 10.255.255.1 is typically non-routable
       const timeoutUri = 'amqp://test:test@10.255.255.1:5672';
+      const connectionTimeoutMs = 2000; // 2 second timeout for test
 
       const manager = RMQConnectionManager.getInstance(timeoutUri, {
-        reconnect: { enabled: false },
-        heartbeat: 1, // Short heartbeat
+        reconnect: {
+          enabled: false,
+          connectionTimeoutMs,
+        },
       });
 
-      // This should eventually fail (might take a while without explicit timeout)
-      // Note: This exposes the lack of connection timeout in the code
       const startTime = Date.now();
 
-      try {
-        await Promise.race([
-          manager.getConnection(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Test timeout')), 10000)
-          ),
-        ]);
-      } catch (error) {
-        const elapsed = Date.now() - startTime;
-        console.log(`Connection attempt took ${elapsed}ms`);
+      await expect(manager.getConnection()).rejects.toThrow('Connection timeout');
 
-        // If it took close to 10 seconds, the code has no timeout
-        if (elapsed > 9000) {
-          console.warn('BUG: No connection timeout configured - connection hung');
-        }
-      }
-    }, 15000);
+      const elapsed = Date.now() - startTime;
+      console.log(`Connection attempt took ${elapsed}ms (timeout: ${connectionTimeoutMs}ms)`);
+
+      // Should fail within timeout + small buffer (500ms)
+      expect(elapsed).toBeLessThan(connectionTimeoutMs + 500);
+    }, 10000);
+
+    it('G4: timeout error should trigger reconnect when enabled', async () => {
+      // Design decision: "Connection timeout" is recoverable error
+      // With maxAttempts: Infinity (default), will retry indefinitely - this is intentional
+      const timeoutUri = 'amqp://test:test@10.255.255.1:5672';
+      const connectionTimeoutMs = 500; // Short timeout
+
+      const manager = RMQConnectionManager.getInstance(timeoutUri, {
+        reconnect: {
+          enabled: true,
+          maxAttempts: 3,
+          connectionTimeoutMs,
+          initialDelayMs: 100,
+          maxDelayMs: 200,
+        },
+      });
+
+      const reconnectingSpy = vi.fn();
+      manager.on('reconnecting', reconnectingSpy);
+
+      const errorPromise = new Promise<Error>((resolve) => {
+        manager.once('error', (err) => resolve(err));
+      });
+
+      const startTime = Date.now();
+      manager.getConnection().catch(() => {});
+
+      const error = await errorPromise;
+      const elapsed = Date.now() - startTime;
+
+      console.log(`Timeout + reconnect took ${elapsed}ms, attempts: ${reconnectingSpy.mock.calls.length}`);
+      console.log(`Error: ${error.message}`);
+
+      // Should have reconnected 3 times (maxAttempts)
+      expect(reconnectingSpy).toHaveBeenCalledTimes(3);
+
+      // Final error should be max attempts, NOT connection timeout
+      expect(error.message).toContain('Max reconnection attempts');
+    }, 30000);
+
+    // G5 moved to separate file: RMQConnectionManager.leak.test.ts
+    // (requires isolated mock of amqplib)
   });
 });
