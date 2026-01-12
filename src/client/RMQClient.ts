@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { RMQConnectionManager } from '../core/RMQConnectionManager';
 import { RMQConnectionError, RMQPublishError, RMQTimeoutError } from '../errors';
 import type { RMQClient as IRMQClient, RMQClientOptions, SendOptions } from '../interfaces/client';
+import type { ShutdownOptions, ShutdownResult } from '../interfaces/common';
 import { assertExchange, validateExchange } from '../utils/exchangeUtils';
 
 export class RMQClient extends EventEmitter implements IRMQClient {
@@ -16,6 +17,12 @@ export class RMQClient extends EventEmitter implements IRMQClient {
   private replyQueue: amqp.Replies.AssertQueue | null = null;
   private responseEmitter: EventEmitter;
   private isConnected: boolean = false;
+
+  // For graceful shutdown - tracks pending RPC requests
+  private pendingRequests: Map<
+    string,
+    { reject: (error: Error) => void; timer: NodeJS.Timeout | null }
+  > = new Map();
 
   constructor(options: RMQClientOptions) {
     super();
@@ -111,16 +118,27 @@ export class RMQClient extends EventEmitter implements IRMQClient {
     return new Promise<T>((resolve, reject) => {
       let timer: NodeJS.Timeout | null = null;
 
+      // Track this request for graceful shutdown
+      this.pendingRequests.set(correlationId, { reject, timer });
+
+      const cleanup = () => {
+        if (timer) clearTimeout(timer);
+        this.responseEmitter.removeAllListeners(correlationId);
+        this.pendingRequests.delete(correlationId);
+      };
+
       if (options.timeout !== null && options.timeout !== undefined) {
         timer = setTimeout(() => {
-          this.responseEmitter.removeAllListeners(correlationId);
+          cleanup();
           reject(new RMQTimeoutError(`Request timed out after ${options.timeout}ms`));
         }, options.timeout);
+        // Update timer reference in pending requests
+        const pending = this.pendingRequests.get(correlationId);
+        if (pending) pending.timer = timer;
       }
 
       const cleanupAndResolve = (content: string) => {
-        if (timer) clearTimeout(timer);
-        this.responseEmitter.removeAllListeners(correlationId);
+        cleanup();
         try {
           const response = JSON.parse(content);
           resolve(response);
@@ -143,26 +161,43 @@ export class RMQClient extends EventEmitter implements IRMQClient {
           },
         );
         if (!sent) {
-          if (timer) clearTimeout(timer);
-          this.responseEmitter.removeAllListeners(correlationId);
+          cleanup();
           reject(new RMQPublishError("Channel's internal buffer is full"));
         }
       } catch (error) {
-        if (timer) clearTimeout(timer);
-        this.responseEmitter.removeAllListeners(correlationId);
+        cleanup();
         reject(error instanceof Error ? error : new Error('Unknown error during publish'));
       }
     });
   }
 
-  public async close(): Promise<void> {
+  /**
+   * Gracefully shutdown the client
+   * @param options.timeout - Max time to wait for pending requests (default: 5000ms)
+   * @param options.force - If true, reject all pending requests immediately (default: true)
+   * @returns ShutdownResult with success status and pending request count
+   */
+  public async shutdown(options: ShutdownOptions = {}): Promise<ShutdownResult> {
+    const force = options.force ?? true;
+
     this.isConnected = false;
 
-    if (this.channel) {
-      try {
-        // Unregister channel from connection manager
-        this.connectionManager.unregisterChannel(this.channel);
+    // Reject all pending requests
+    if (force) {
+      for (const [correlationId, { timer, reject }] of this.pendingRequests) {
+        if (timer) clearTimeout(timer);
+        this.responseEmitter.removeAllListeners(correlationId);
+        reject(new Error('Client shutdown: request cancelled'));
+      }
+    }
 
+    const pendingCount = this.pendingRequests.size;
+    this.pendingRequests.clear();
+
+    // Close channel
+    if (this.channel) {
+      this.connectionManager.unregisterChannel(this.channel);
+      try {
         await this.channel.close();
       } catch {
         // Ignore errors when closing
@@ -170,6 +205,20 @@ export class RMQClient extends EventEmitter implements IRMQClient {
       this.channel = null;
       this.replyQueue = null;
     }
+
+    return {
+      success: true,
+      pendingCount,
+      timedOut: false,
+    };
+  }
+
+  /**
+   * Close the client immediately, rejecting all pending requests
+   * @deprecated Use shutdown() for graceful shutdown
+   */
+  public async close(): Promise<void> {
+    await this.shutdown({ force: true });
   }
 
   /**

@@ -1,7 +1,13 @@
 // ./src/interfaces/server.ts
 
 import type { MiddlewareFunction } from '../core/MiddlewareManager';
-import type { HandlerFunction, RetryOptions, RMQOptions } from './common';
+import type {
+  HandlerFunction,
+  RetryOptions,
+  RMQOptions,
+  ShutdownOptions,
+  ShutdownResult,
+} from './common';
 import type { ReconnectOptions } from './connection';
 
 export interface RMQServerOptions extends RMQOptions {
@@ -27,5 +33,6 @@ export interface RMQServer {
   on(routingKey: string, handler: HandlerFunction, options?: HandlerOptions): void;
   use(middleware: MiddlewareFunction): void;
   listen(options?: ListenOptions): Promise<void>;
+  shutdown(options?: ShutdownOptions): Promise<ShutdownResult>;
   close(): Promise<void>;
 }

@@ -4,7 +4,12 @@ import type { ConsumeMessage } from 'amqplib';
 import { HandlerRegistry } from '../core/HandlerRegistry';
 import { type MiddlewareFunction, MiddlewareManager } from '../core/MiddlewareManager';
 import { RMQConnectionManager } from '../core/RMQConnectionManager';
-import type { HandlerFunction, RetryOptions } from '../interfaces/common';
+import type {
+  HandlerFunction,
+  RetryOptions,
+  ShutdownOptions,
+  ShutdownResult,
+} from '../interfaces/common';
 import type {
   HandlerOptions,
   RMQServer as IRMQServer,
@@ -21,7 +26,6 @@ export class RMQServer implements IRMQServer {
   private channel: amqp.Channel | null = null;
   private defaultRetryOptions: Required<RetryOptions>;
   private mainQueueName: string;
-  private retryExchangeName: string;
   private retryQueueName: string;
   private dlqName: string;
   private middlewareManager: MiddlewareManager;
@@ -30,6 +34,9 @@ export class RMQServer implements IRMQServer {
   private prefetch: number | null = null;
   private consumerTag: string | null = null;
   private isListening: boolean = false;
+
+  // For graceful shutdown - tracks currently executing message handlers
+  private inFlightHandlers: Set<Promise<void>> = new Set();
 
   /**
    * Connection events emitter
@@ -65,7 +72,6 @@ export class RMQServer implements IRMQServer {
       enabled: options.retryOptions?.enabled ?? false,
     };
     this.mainQueueName = `${this.appName}`;
-    this.retryExchangeName = `${this.exchange}.retry`;
     this.retryQueueName = `${this.mainQueueName}.retry`;
     this.dlqName = `${this.mainQueueName}.dlq`;
     validateExchange(this.exchange);
@@ -156,6 +162,20 @@ export class RMQServer implements IRMQServer {
   private async handleMessage(msg: ConsumeMessage | null): Promise<void> {
     if (!msg || !this.channel) return;
 
+    // Track this handler for graceful shutdown
+    const handlerPromise = this.processMessage(msg);
+    this.inFlightHandlers.add(handlerPromise);
+
+    try {
+      await handlerPromise;
+    } finally {
+      this.inFlightHandlers.delete(handlerPromise);
+    }
+  }
+
+  private async processMessage(msg: ConsumeMessage): Promise<void> {
+    if (!this.channel) return;
+
     const headers = msg.properties.headers || {};
     const retryCount = headers['x-retry-count'] ? parseInt(headers['x-retry-count'], 10) : 0;
     const originalRoutingKey = msg.fields.routingKey;
@@ -228,28 +248,84 @@ export class RMQServer implements IRMQServer {
     });
   }
 
-  public async close(): Promise<void> {
+  /**
+   * Gracefully shutdown the server
+   * @param options.timeout - Max time to wait for in-flight handlers (default: 30000ms)
+   * @param options.force - If true, don't wait for handlers (default: false)
+   * @returns ShutdownResult with success status and pending handler count
+   */
+  public async shutdown(options: ShutdownOptions = {}): Promise<ShutdownResult> {
+    const timeout = options.timeout ?? 30000;
+    const force = options.force ?? false;
+
     this.isListening = false;
 
-    if (this.channel) {
+    // 1. Cancel consumer to stop receiving new messages
+    if (this.channel && this.consumerTag) {
       try {
-        // Cancel consumer first
-        if (this.consumerTag) {
-          await this.channel.cancel(this.consumerTag);
-          this.consumerTag = null;
+        await this.channel.cancel(this.consumerTag);
+        this.consumerTag = null;
+      } catch {
+        // Channel may already be closed
+      }
+    }
+
+    // 2. Wait for in-flight handlers to complete (unless force)
+    let timedOut = false;
+    if (!force && this.inFlightHandlers.size > 0) {
+      const startTime = Date.now();
+
+      while (this.inFlightHandlers.size > 0) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed >= timeout) {
+          timedOut = true;
+          console.warn(
+            `[RMQServer] Shutdown timeout: ${this.inFlightHandlers.size} handlers still in-flight`,
+          );
+          break;
         }
 
-        // Unregister channel from connection manager
-        this.connectionManager.unregisterChannel(this.channel);
+        // Wait for either all handlers to complete or a short interval
+        await Promise.race([
+          Promise.all([...this.inFlightHandlers]),
+          new Promise((r) => setTimeout(r, 100)),
+        ]);
+      }
+    }
 
+    const pendingCount = this.inFlightHandlers.size;
+
+    // 3. Close channel
+    if (this.channel) {
+      this.connectionManager.unregisterChannel(this.channel);
+      try {
         await this.channel.close();
-        this.channel = null;
       } catch (error) {
-        if (error instanceof Error && error.message !== 'Channel closed') {
+        // Ignore "Channel closed" and "Channel closing" errors (already closing)
+        if (
+          error instanceof Error &&
+          !error.message.includes('Channel closed') &&
+          !error.message.includes('Channel closing')
+        ) {
           throw error;
         }
       }
+      this.channel = null;
     }
+
+    return {
+      success: pendingCount === 0,
+      pendingCount,
+      timedOut,
+    };
+  }
+
+  /**
+   * Close the server immediately without waiting for in-flight handlers
+   * @deprecated Use shutdown() for graceful shutdown
+   */
+  public async close(): Promise<void> {
+    await this.shutdown({ timeout: 0, force: true });
   }
 
   public use(middleware: MiddlewareFunction): void {

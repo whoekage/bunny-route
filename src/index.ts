@@ -15,3 +15,9 @@ export * from './interfaces/client';
 export * from './interfaces/common';
 export * from './interfaces/server';
 export { RMQServer } from './server/RMQServer';
+export {
+  type GracefulShutdownOptions,
+  type GracefulShutdownResult,
+  performGracefulShutdown,
+  setupGracefulShutdown,
+} from './utils/gracefulShutdown';

@@ -1,6 +1,6 @@
 // src/interfaces/client.ts
 
-import type { RMQOptions } from './common';
+import type { RMQOptions, ShutdownOptions, ShutdownResult } from './common';
 
 export interface RMQClientOptions extends RMQOptions {
   exchange?: string;
@@ -15,5 +15,6 @@ export interface SendOptions {
 export interface RMQClient {
   connect(): Promise<void>;
   send<T>(routingKey: string, message: any, options?: SendOptions): Promise<T>;
+  shutdown(options?: ShutdownOptions): Promise<ShutdownResult>;
   close(): Promise<void>;
 }
