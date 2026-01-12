@@ -158,6 +158,7 @@ export class RMQClient extends EventEmitter implements IRMQClient {
             replyTo: this.replyQueue?.queue,
             correlationId,
             persistent: options.persistent ?? true,
+            headers: options.headers,
           },
         );
         if (!sent) {

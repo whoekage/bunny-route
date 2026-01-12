@@ -10,6 +10,7 @@ export interface SendOptions {
   timeout?: number | null;
   persistent?: boolean;
   nestCompatible?: boolean;
+  headers?: Record<string, unknown>;
 }
 
 export interface RMQClient {
